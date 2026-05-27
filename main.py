@@ -22,6 +22,14 @@ distance_traveled = 0
 turn = 0
 map_lsit = 20 * [0] + 30 * [-1] + 100 * [0] + 100 * [1] + 100 * [0]
 
+speed = 0
+air_drag_coefficient = 0.010
+rolling_friction = 0.0001
+braking_force = 0.0025
+current_braking = 0.0
+
+test_image = pygame.image.load("car.png").convert()
+
 def width_calc(i, offset, curve_type, current_x_center):
     z_bottom = (number_of_road_segments - i) - offset + 1.0
     z_top = (number_of_road_segments - (i + 1)) - offset + 1.0
@@ -74,16 +82,17 @@ def draw_road(turn):
         
         
         z = (number_of_road_segments - i) - offset + 1.0
-        if z <= 0.1: z = 0.1
+        if z <= 0.1:
+            z = 0.1
         scale = 1.0 / z
         
         steering_projection = turn * (scale * 30) 
         
         final_center = centers[i] + steering_projection
 
-        color_1 = (128, 128, 128)
-        color_2 = (59, 59, 59)
-        color = color_1 if map_index % 2 == 0 else color_2
+        color_1 = (64, 70, 78)
+        color_2 = (56, 61, 68)
+        color = color_1 if map_index % 4 == 0 else color_2
 
         p_1, p_2, p_3, p_4 = width_calc(i, offset, curve_type, final_center)
         pos = (p_1, p_2, p_4, p_3)
@@ -96,17 +105,39 @@ while running:
     keys = pygame.key.get_pressed()
     current_tile_curve = map_lsit[distance_traveled % len(map_lsit)]
 
-    
     if keys[pygame.K_w]:
-        offset += 0.09  
-        turn -= current_tile_curve * 0.08
+        if speed < 0.04:
+            engine_force = 0.0015  # 1st Gear (Was 0.0030)
+        elif speed < 0.08:
+            engine_force = 0.0010  # 2nd Gear (Was 0.0020)
+        elif speed < 0.11:
+            engine_force = 0.0006  # 3rd Gear (Was 0.0012)
+        else:
+            engine_force = 0.0004  # 4th Gear (Was 0.0008) 
+    else:
+        engine_force = 0.0
+
+    if keys[pygame.K_s]:
+        current_braking = braking_force 
+    else:
+        current_braking = 0.0
+
+    air_drag = air_drag_coefficient * (speed * speed)
+    acceleration = engine_force - rolling_friction - air_drag - current_braking
+    speed += acceleration
+    
+    if speed < 0:
+        speed = 0
+
+    offset += speed
 
     if keys[pygame.K_a]:
         turn -= 0.15  
     if keys[pygame.K_d]:
         turn += 0.15  
-
     
+    turn -= current_tile_curve * 0.08
+
     if turn < -4:
         turn = -4
     if turn > 4:
@@ -114,7 +145,7 @@ while running:
 
     if offset >= 1.0:
         offset -= 1.0
-        distance_traveled = distance_traveled + 1
+        distance_traveled += 1
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -122,8 +153,12 @@ while running:
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             running = False
 
-    screen.fill((34, 139, 34))
+    screen.fill((135, 206, 250))
+    kratka_do_wypelnienia = (0, horizon_y+8, 320, 250)
+
+    screen.fill((34, 139, 34), rect=kratka_do_wypelnienia)
     draw_road(turn)
+    screen.blit(test_image, (160-34, 240-26-15))
     pygame.display.flip()
     clock.tick(60)
 
