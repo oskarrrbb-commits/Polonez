@@ -106,14 +106,15 @@ while running:
     current_tile_curve = map_lsit[distance_traveled % len(map_lsit)]
 
     if keys[pygame.K_w]:
+        turn -= current_tile_curve * 0.08
         if speed < 0.04:
-            engine_force = 0.0015  # 1st Gear (Was 0.0030)
+            engine_force = 0.0015 
         elif speed < 0.08:
-            engine_force = 0.0010  # 2nd Gear (Was 0.0020)
+            engine_force = 0.0010 
         elif speed < 0.11:
-            engine_force = 0.0006  # 3rd Gear (Was 0.0012)
+            engine_force = 0.0006 
         else:
-            engine_force = 0.0004  # 4th Gear (Was 0.0008) 
+            engine_force = 0.0004  
     else:
         engine_force = 0.0
 
@@ -132,11 +133,13 @@ while running:
     offset += speed
 
     if keys[pygame.K_a]:
-        turn -= 0.15  
+        if speed>0:
+            turn -= 0.1  
     if keys[pygame.K_d]:
-        turn += 0.15  
+        if speed>0:
+            turn += 0.1  
     
-    turn -= current_tile_curve * 0.08
+    
 
     if turn < -4:
         turn = -4
@@ -157,7 +160,9 @@ while running:
     kratka_do_wypelnienia = (0, horizon_y+8, 320, 250)
 
     screen.fill((34, 139, 34), rect=kratka_do_wypelnienia)
+    
     draw_road(turn)
+    
     screen.blit(test_image, (160-34, 240-26-15))
     pygame.display.flip()
     clock.tick(60)
