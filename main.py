@@ -11,7 +11,7 @@ clock = pygame.time.Clock()
 
 screen = pygame.display.set_mode((screen_width, screen_height), screen_flags)
 
-near_road_width = 330
+near_road_width = 410
 number_of_road_segments = 18
 horizon_y = int(screen_height * 0.38)
 road_height = screen_height - horizon_y
@@ -22,13 +22,16 @@ distance_traveled = 0
 turn = 0
 map_lsit = 20 * [0] + 30 * [-1] + 100 * [0] + 100 * [1] + 100 * [0]
 
+car_x = x_center - 30
+car_y = screen_height - 45-30
+
 speed = 0
 air_drag_coefficient = 0.010
 rolling_friction = 0.0001
 braking_force = 0.0025
 current_braking = 0.0
 
-test_image = pygame.image.load("car.png").convert()
+test_image = pygame.image.load("car_front.png").convert_alpha()
 
 def width_calc(i, offset, curve_type, current_x_center):
     z_bottom = (number_of_road_segments - i) - offset + 1.0
@@ -141,10 +144,10 @@ while running:
     
     
 
-    if turn < -4:
-        turn = -4
-    if turn > 4:
-        turn = 4
+    if turn < -6:
+        turn = -6
+    if turn > 6:
+        turn = 6
 
     if offset >= 1.0:
         offset -= 1.0
@@ -161,9 +164,13 @@ while running:
 
     screen.fill((34, 139, 34), rect=kratka_do_wypelnienia)
     
+    font = pygame.font.Font(None, 36)
+    speed_surface = font.render(f"Speed: {int(speed*1000)} mph", True, (255, 255, 255))
+    screen.blit(speed_surface, (50, 50))
+
     draw_road(turn)
     
-    screen.blit(test_image, (160-34, 240-26-15))
+    screen.blit(test_image, (car_x, car_y))
     pygame.display.flip()
     clock.tick(60)
 
