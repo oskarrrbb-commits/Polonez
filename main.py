@@ -25,6 +25,7 @@ map_lsit = 20 * [0] + 30 * [-1] + 100 * [0] + 100 * [1] + 100 * [0]
 car_x = x_center - 30
 car_y = screen_height - 45-30
 
+gear = 1
 speed = 0
 air_drag_coefficient = 0.010
 rolling_friction = 0.0001
@@ -110,14 +111,28 @@ while running:
 
     if keys[pygame.K_w]:
         turn -= current_tile_curve * 0.08
-        if speed < 0.04:
-            engine_force = 0.0015 
-        elif speed < 0.08:
-            engine_force = 0.0010 
-        elif speed < 0.11:
-            engine_force = 0.0006 
-        else:
-            engine_force = 0.0004  
+        
+        if speed < 0.04 and gear==1:
+            engine_force = 0.0017 
+        elif speed < 0.08 and gear==2:
+            engine_force = 0.0012 
+        elif speed < 0.11 and gear==3:
+            engine_force = 0.0008 
+        elif speed < 0.14 and gear==4:
+                engine_force = 0.0006  
+        elif speed > 0.14 and gear==5:
+                engine_force = 0.0004
+
+        if speed > 0.04 and gear==1:
+            engine_force = 0 
+        elif speed > 0.08 and gear==2:
+            engine_force = 0
+        elif speed > 0.11 and gear==3:
+            engine_force = 0
+        elif speed > 0.14 and gear==4:
+                engine_force = 0
+        elif speed > 0.18 and gear==5:
+            engine_force = 0
     else:
         engine_force = 0.0
 
@@ -132,7 +147,7 @@ while running:
     
     if speed < 0:
         speed = 0
-
+    
     offset += speed
 
     if keys[pygame.K_a]:
@@ -141,8 +156,7 @@ while running:
     if keys[pygame.K_d]:
         if speed>0:
             turn += 0.1  
-    
-    
+   
 
     if turn < -6:
         turn = -6
@@ -158,6 +172,16 @@ while running:
             running = False
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             running = False
+        
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LSHIFT:
+                if gear < 5:        
+                     gear = gear + 1 
+                
+            elif event.key == pygame.K_LCTRL:
+                if gear > 1:        
+                    gear = gear - 1 
+        
 
     screen.fill((135, 206, 250))
     kratka_do_wypelnienia = (0, horizon_y+8, 320, 250)
@@ -165,7 +189,7 @@ while running:
     screen.fill((34, 139, 34), rect=kratka_do_wypelnienia)
     
     font = pygame.font.Font(None, 36)
-    speed_surface = font.render(f"Speed: {int(speed*1000)} mph", True, (255, 255, 255))
+    speed_surface = font.render(f"Speed: {float(speed)} mph", True, (255, 255, 255))
     screen.blit(speed_surface, (50, 50))
 
     draw_road(turn)
