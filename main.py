@@ -1,5 +1,6 @@
 ﻿import pygame
 import sys
+import random
 
 pygame.init()
 
@@ -20,7 +21,21 @@ x_center = screen_width / 2
 offset = 0
 distance_traveled = 0
 turn = 0
-map_lsit = 20 * [0] + 30 * [-1] + 100 * [0] + 100 * [1] + 100 * [0]
+map_lsit = 20 * [0]
+def create_map(map_list):
+    for i in range(100):
+        road_type=random.randint(1,3)
+        if road_type==1:
+            turn_sharpnes=-random.randint(0,2)+random.random()
+        if road_type==2:
+            turn_sharpnes=0
+        if road_type==3:
+            turn_sharpnes=random.randint(0,2)+random.random()
+        road_lenght=random.randint(20,150)
+        map_list=map_list+ road_lenght * [turn_sharpnes]
+    return map_list
+
+map_lsit=create_map(map_lsit)
 
 car_x = x_center - 30
 car_y = screen_height - 45-30
@@ -120,49 +135,56 @@ while running:
             engine_force = 0.0008 
         elif speed < 0.14 and gear==4:
                 engine_force = 0.0006  
-        elif speed > 0.14 and gear==5:
-                engine_force = 0.0004
-
-        if speed > 0.04 and gear==1:
-            engine_force = 0 
-        elif speed > 0.08 and gear==2:
-            engine_force = 0
-        elif speed > 0.11 and gear==3:
-            engine_force = 0
-        elif speed > 0.14 and gear==4:
-                engine_force = 0
-        elif speed > 0.18 and gear==5:
-            engine_force = 0
+        elif speed < 0.18 and gear==5:
+                engine_force = 0.0004     
     else:
         engine_force = 0.0
+
+    if speed > 0.04 and gear==1:
+            engine_force = 0 
+    elif speed > 0.08 and gear==2:
+            engine_force = 0
+    elif speed > 0.11 and gear==3:
+            engine_force = 0
+    elif speed > 0.14 and gear==4:
+                engine_force = 0
+    elif speed > 0.18 and gear==5:
+            engine_force = 0
 
     if keys[pygame.K_s]:
         current_braking = braking_force 
     else:
         current_braking = 0.0
 
-    air_drag = air_drag_coefficient * (speed * speed)
-    acceleration = engine_force - rolling_friction - air_drag - current_braking
-    speed += acceleration
-    
-    if speed < 0:
-        speed = 0
-    
-    offset += speed
-
     if keys[pygame.K_a]:
         if speed>0:
             turn -= 0.1  
     if keys[pygame.K_d]:
         if speed>0:
-            turn += 0.1  
-   
+            turn += 0.1 
 
+    
+    if speed < 0:
+        speed = 0
     if turn < -6:
         turn = -6
+        speed = speed * 0.92
+        
     if turn > 6:
         turn = 6
+        speed = speed * 0.92
 
+    air_drag = air_drag_coefficient * (speed * speed)
+    acceleration = engine_force - rolling_friction - air_drag - current_braking
+    speed += acceleration
+    
+    offset += speed
+
+     
+   
+
+    
+    
     if offset >= 1.0:
         offset -= 1.0
         distance_traveled += 1
@@ -189,7 +211,7 @@ while running:
     screen.fill((34, 139, 34), rect=kratka_do_wypelnienia)
     
     font = pygame.font.Font(None, 36)
-    speed_surface = font.render(f"Speed: {float(speed)} mph", True, (255, 255, 255))
+    speed_surface = font.render(f"Speed: {int(speed*1000)} mph", True, (255, 255, 255))
     screen.blit(speed_surface, (50, 50))
 
     draw_road(turn)
