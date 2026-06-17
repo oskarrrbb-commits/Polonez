@@ -22,6 +22,7 @@ offset = 0
 distance_traveled = 0
 turn = 0
 map_lsit = 20 * [0]
+
 def create_map(map_list):
     for i in range(100):
         road_type=random.randint(1,3)
@@ -31,11 +32,18 @@ def create_map(map_list):
             turn_sharpnes=0
         if road_type==3:
             turn_sharpnes=random.randint(0,2)+random.random()
-        road_lenght=random.randint(20,150)
+        road_lenght=random.randint(20,100)
         map_list=map_list+ road_lenght * [turn_sharpnes]
     return map_list
 
 map_lsit=create_map(map_lsit)
+
+scenery_map = {}
+for i in range(len(map_lsit)):
+    if random.random() < 0.8:  
+        side = random.choice([-1, 1])
+        distance = random.randint(200, 4000)
+        scenery_map[i] = {"type": random.choice(["tree", "stone", "bush"]),"offset": side * distance}
 
 car_x = x_center - 30
 car_y = screen_height - 45-30
@@ -48,7 +56,9 @@ braking_force = 0.0025
 current_braking = 0.0
 
 test_image = pygame.image.load("car_front.png").convert_alpha()
-
+tree_image = pygame.image.load("tree.png").convert_alpha()
+bush_image = pygame.image.load("bush.png").convert_alpha()
+stone_image = pygame.image.load("stone.png").convert_alpha()
 def width_calc(i, offset, curve_type, current_x_center):
     z_bottom = (number_of_road_segments - i) - offset + 1.0
     z_top = (number_of_road_segments - (i + 1)) - offset + 1.0
@@ -104,7 +114,6 @@ def draw_road(turn):
         if z <= 0.1:
             z = 0.1
         scale = 1.0 / z
-        
         steering_projection = turn * (scale * 30) 
         
         final_center = centers[i] + steering_projection
@@ -115,8 +124,34 @@ def draw_road(turn):
 
         p_1, p_2, p_3, p_4 = width_calc(i, offset, curve_type, final_center)
         pos = (p_1, p_2, p_4, p_3)
-
         pygame.draw.polygon(screen, color, pos)
+        actual_index = map_index % len(map_lsit)    
+        if actual_index in scenery_map:
+            object=scenery_map[actual_index]
+            if object["type"]=="tree":
+                sprite_img=tree_image
+                base_w=124
+                base_h=151
+            elif object["type"]=="bush":
+                sprite_img=bush_image
+                base_w=124
+                base_h=74
+            elif object["type"]=="stone":
+                sprite_img=stone_image
+                base_w=109
+                base_h=38
+            
+            scaled_base_w = int(base_w * scale)
+            scaled_base_h = int(base_h * scale)
+            if scaled_base_h>0 and scaled_base_w>0:
+                scaled_base = pygame.transform.scale(sprite_img, (scaled_base_w, scaled_base_h))
+                base_x = final_center + (object["offset"] * scale) - (scaled_base_w / 2)
+                base_y = p_1[1] - scaled_base_h
+                screen.blit(scaled_base, (base_x, base_y))
+
+        
+
+        
 
 
 running = True
@@ -180,11 +215,6 @@ while running:
     
     offset += speed
 
-     
-   
-
-    
-    
     if offset >= 1.0:
         offset -= 1.0
         distance_traveled += 1
