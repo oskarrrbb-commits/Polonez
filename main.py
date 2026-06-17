@@ -21,6 +21,7 @@ x_center = screen_width / 2
 offset = 0
 distance_traveled = 0
 turn = 0
+real_turn = 0
 map_lsit = 20 * [0]
 
 def create_map(map_list):
@@ -42,7 +43,7 @@ scenery_map = {}
 for i in range(len(map_lsit)):
     if random.random() < 0.8:  
         side = random.choice([-1, 1])
-        distance = random.randint(200, 4000)
+        distance = random.randint(300, 2000)
         scenery_map[i] = {"type": random.choice(["tree", "stone", "bush"]),"offset": side * distance}
 
 car_x = x_center - 30
@@ -55,10 +56,26 @@ rolling_friction = 0.0001
 braking_force = 0.0025
 current_braking = 0.0
 
-test_image = pygame.image.load("car_front.png").convert_alpha()
+car_image = pygame.image.load("car_front.png").convert_alpha()
 tree_image = pygame.image.load("tree.png").convert_alpha()
 bush_image = pygame.image.load("bush.png").convert_alpha()
 stone_image = pygame.image.load("stone.png").convert_alpha()
+background_image = pygame.image.load("background.png").convert_alpha()
+overlay_image = pygame.image.load("overlay.png").convert_alpha()
+
+background_w=background_image.get_width()
+background_image_scaled=pygame.transform.scale(background_image, (background_w, horizon_y+8))
+background_x=0
+
+def draw_background(turn,speed,background_x):
+    if speed<=0:
+         speed = 0
+    background_x -= turn * speed * 10.0
+    current_bg_offset = int(background_x) % background_w
+    screen.blit(background_image_scaled, (-current_bg_offset, 0))
+    screen.blit(background_image_scaled, (background_w - current_bg_offset, 0))    
+    return background_x  
+
 def width_calc(i, offset, curve_type, current_x_center):
     z_bottom = (number_of_road_segments - i) - offset + 1.0
     z_top = (number_of_road_segments - (i + 1)) - offset + 1.0
@@ -71,11 +88,18 @@ def width_calc(i, offset, curve_type, current_x_center):
     scale = 1.0 / z_bottom
     scale_top = 1.0 / z_top
 
+    scale_min = 1.0 / (number_of_road_segments + 1.0) 
+    scale_max = 1.0                                   
+
+    norm_scale = (scale - scale_min) / (scale_max - scale_min)
+    norm_scale_top = (scale_top - scale_min) / (scale_max - scale_min)
+
     w = near_road_width * scale
     w_2 = near_road_width * scale_top
 
-    y_bottom = horizon_y + (road_height * scale)
-    y_top = horizon_y + (road_height * scale_top)
+    # 3. Use the normalized scales for Y positions
+    y_bottom = horizon_y + (road_height * norm_scale)
+    y_top = horizon_y + (road_height * norm_scale_top)
 
     left_bottom_x = current_x_center - w / 2
     right_bottom_x = current_x_center + w / 2
@@ -193,14 +217,12 @@ while running:
 
     if keys[pygame.K_a]:
         if speed>0:
+            real_turn -=0.1
             turn -= 0.1  
     if keys[pygame.K_d]:
         if speed>0:
+            real_turn +=0.1
             turn += 0.1 
-
-    
-    if speed < 0:
-        speed = 0
     if turn < -6:
         turn = -6
         speed = speed * 0.92
@@ -212,7 +234,9 @@ while running:
     air_drag = air_drag_coefficient * (speed * speed)
     acceleration = engine_force - rolling_friction - air_drag - current_braking
     speed += acceleration
-    
+
+    if speed < 0:
+        speed = 0
     offset += speed
 
     if offset >= 1.0:
@@ -234,19 +258,22 @@ while running:
                 if gear > 1:        
                     gear = gear - 1 
         
-
-    screen.fill((135, 206, 250))
-    kratka_do_wypelnienia = (0, horizon_y+8, 320, 250)
-
-    screen.fill((34, 139, 34), rect=kratka_do_wypelnienia)
     
-    font = pygame.font.Font(None, 36)
-    speed_surface = font.render(f"Speed: {int(speed*1000)} mph", True, (255, 255, 255))
-    screen.blit(speed_surface, (50, 50))
+    draw_background(real_turn,speed,background_x)
+    grass = (0, horizon_y, 320, 250)
+    screen.fill((34, 139, 34), rect=grass)
+
+    
 
     draw_road(turn)
+
+    screen.blit(overlay_image,(0,0))
+    font = pygame.font.Font(None, 24)
+    speed_surface = font.render(f"Speed: {int(speed*1000)} mph", True, (255, 255, 255))
+    screen.blit(speed_surface, (50, 50))
     
-    screen.blit(test_image, (car_x, car_y))
+    screen.blit(car_image, (car_x, car_y))
+
     pygame.display.flip()
     clock.tick(60)
 
