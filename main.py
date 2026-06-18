@@ -1,7 +1,8 @@
 ﻿import pygame
 import sys
 import random
-
+import numpy as np
+import sounddevice as sd
 pygame.init()
 
 screen_width = 320
@@ -11,6 +12,39 @@ screen_flags = pygame.SCALED | pygame.FULLSCREEN
 clock = pygame.time.Clock()
 
 screen = pygame.display.set_mode((screen_width, screen_height), screen_flags)
+sample_rate = 44100
+phase_accumulator = 0.0
+current_rpm = 0.0  
+POLONEZ_CARO = {
+    "idle": 36.0,        
+    "range": 125.0,      
+    "base_vol": 0.0007,    
+    "grit_vol": 0.0004,    
+    "harmonic": 2.0      
+}
+
+current_profile = POLONEZ_CARO
+def engine_audio_callback(outdata, frames, time, status):
+    global phase_accumulator
+    
+    if game_over or current_rpm == 0:
+        outdata.fill(0)  
+        return
+
+    target_freq = current_profile["idle"] + (current_rpm / 100.0) * current_profile["range"]
+    
+    phase_steps = phase_accumulator + np.arange(frames) * (target_freq / sample_rate)
+    
+    wave = current_profile["base_vol"] * (2.0 * (phase_steps % 1.0) - 1.0)
+    
+    wave += current_profile["grit_vol"] * (2.0 * ((phase_steps * current_profile["harmonic"]) % 1.0) - 1.0)
+    
+    phase_accumulator = (phase_accumulator + frames * (target_freq / sample_rate)) % 1.0
+
+    outdata[:, 0] = wave
+    outdata[:, 1] = wave
+audio_stream = sd.OutputStream(channels=2, callback=engine_audio_callback, samplerate=sample_rate)
+audio_stream.start()
 
 near_road_width = 410
 number_of_road_segments = 18
@@ -23,6 +57,26 @@ distance_traveled = 0
 turn = 0
 real_turn = 0
 map_lsit = 20 * [0]
+
+time_left = 60.0       
+checkpoint_distance = 300
+next_checkpoint = checkpoint_distance
+game_over = False
+
+def time_to_go(clock,distance_traveled,game_over,time_left,next_checkpoint):
+    dt = clock.get_time() / 1000.0  
+    if game_over==False:
+        time_left -= dt
+        if distance_traveled >= next_checkpoint:
+            time_left += 30.0  
+            next_checkpoint += checkpoint_distance  
+    
+        if time_left <= 0:
+            time_left = 0
+            game_over = True
+           
+    return time_left,game_over,next_checkpoint
+
 
 def create_map(map_list):
     for i in range(100):
@@ -55,7 +109,7 @@ air_drag_coefficient = 0.010
 rolling_friction = 0.0001
 braking_force = 0.0025
 current_braking = 0.0
-
+rpm_percent = 0
 car_image = pygame.image.load("car_front.png").convert_alpha()
 tree_image = pygame.image.load("tree.png").convert_alpha()
 bush_image = pygame.image.load("bush.png").convert_alpha()
@@ -64,13 +118,12 @@ background_image = pygame.image.load("background.png").convert_alpha()
 overlay_image = pygame.image.load("overlay.png").convert_alpha()
 
 background_w=background_image.get_width()
-background_image_scaled=pygame.transform.scale(background_image, (background_w, horizon_y+8))
+background_image_scaled=pygame.transform.scale(background_image, (background_w, horizon_y))
 background_x=0
 
 def draw_background(turn,speed,background_x):
-    if speed<=0:
-         speed = 0
-    background_x -= turn * speed * 10.0
+
+    background_x -= turn * speed * 2
     current_bg_offset = int(background_x) % background_w
     screen.blit(background_image_scaled, (-current_bg_offset, 0))
     screen.blit(background_image_scaled, (background_w - current_bg_offset, 0))    
@@ -97,7 +150,6 @@ def width_calc(i, offset, curve_type, current_x_center):
     w = near_road_width * scale
     w_2 = near_road_width * scale_top
 
-    # 3. Use the normalized scales for Y positions
     y_bottom = horizon_y + (road_height * norm_scale)
     y_top = horizon_y + (road_height * norm_scale_top)
 
@@ -112,6 +164,38 @@ def width_calc(i, offset, curve_type, current_x_center):
     p_4 = (int(right_top_x), int(y_top))
 
     return p_1, p_2, p_3, p_4
+
+def rpm_calc(gear,speed):
+    if  gear==1:
+        rpm_percent=speed/ 0.04 * 100
+        if rpm_percent>100: rpm_percent=100 
+        return rpm_percent
+    elif  gear==2:
+        rpm_percent=speed/ 0.08 * 100
+        if rpm_percent>100: rpm_percent=100
+        return rpm_percent
+    elif  gear==3:
+        rpm_percent=speed/ 0.11 * 100
+        if rpm_percent>100: rpm_percent=100
+        return rpm_percent
+    elif  gear==4:
+        rpm_percent=speed/ 0.14 * 100
+        if rpm_percent>100: rpm_percent=100
+        return rpm_percent
+    elif  gear==5:
+        rpm_percent=speed/ 0.18 * 100
+        if rpm_percent>100: rpm_percent=100
+        return rpm_percent
+
+
+def rpm_draw(rpm_percent):
+    if rpm_percent>95:
+        color = (255,0,0)
+    else:
+        color = (0,255,0)
+     
+    pos = (10,220),(10,230),(10+rpm_percent/2,230),(10+rpm_percent/2,220)
+    pygame.draw.polygon(screen, color, pos)
 
 
 def draw_road(turn):
@@ -187,13 +271,13 @@ while running:
         turn -= current_tile_curve * 0.08
         
         if speed < 0.04 and gear==1:
-            engine_force = 0.0017 
+            engine_force = 0.0006 
         elif speed < 0.08 and gear==2:
-            engine_force = 0.0012 
+            engine_force = 0.0007 
         elif speed < 0.11 and gear==3:
-            engine_force = 0.0008 
+            engine_force = 0.0006 
         elif speed < 0.14 and gear==4:
-                engine_force = 0.0006  
+                engine_force = 0.0005  
         elif speed < 0.18 and gear==5:
                 engine_force = 0.0004     
     else:
@@ -215,13 +299,14 @@ while running:
     else:
         current_braking = 0.0
 
+    real_turn = 0
     if keys[pygame.K_a]:
         if speed>0:
-            real_turn -=0.1
+            real_turn = -1
             turn -= 0.1  
     if keys[pygame.K_d]:
         if speed>0:
-            real_turn +=0.1
+            real_turn = 1
             turn += 0.1 
     if turn < -6:
         turn = -6
@@ -231,12 +316,22 @@ while running:
         turn = 6
         speed = speed * 0.92
 
+    if game_over==True:
+         engine_force=0
+
     air_drag = air_drag_coefficient * (speed * speed)
     acceleration = engine_force - rolling_friction - air_drag - current_braking
     speed += acceleration
 
     if speed < 0:
         speed = 0
+
+    rpm_percent=rpm_calc(gear,speed)
+    
+    current_rpm = rpm_percent if speed > 0 else 0.0
+    if game_over:
+        current_rpm = 0.0
+
     offset += speed
 
     if offset >= 1.0:
@@ -259,7 +354,8 @@ while running:
                     gear = gear - 1 
         
     
-    draw_background(real_turn,speed,background_x)
+    background_x = draw_background(real_turn,speed,background_x)
+    
     grass = (0, horizon_y, 320, 250)
     screen.fill((34, 139, 34), rect=grass)
 
@@ -268,12 +364,19 @@ while running:
     draw_road(turn)
 
     screen.blit(overlay_image,(0,0))
-    font = pygame.font.Font(None, 24)
-    speed_surface = font.render(f"Speed: {int(speed*1000)} mph", True, (255, 255, 255))
-    screen.blit(speed_surface, (50, 50))
-    
-    screen.blit(car_image, (car_x, car_y))
 
+    font = pygame.font.Font(None, 24)
+    speed_surface = font.render(f"{int(speed*1000)}", True, (0, 0, 0))
+    gear_surface = font.render(f"{int(gear)}", True, (0, 0, 0))
+    time_surface = font.render(f"{int(time_left)}", True, (0, 0, 0))
+    screen.blit(speed_surface, (17, 180))
+    screen.blit(gear_surface, (278, 220))
+    screen.blit(time_surface, (270, 183))
+
+    screen.blit(car_image, (car_x, car_y))
+    rpm_draw(rpm_percent)
+    time_left,game_over,next_checkpoint=time_to_go(clock,distance_traveled,game_over,time_left,next_checkpoint)
+    
     pygame.display.flip()
     clock.tick(60)
 
