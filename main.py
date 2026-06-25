@@ -15,15 +15,15 @@ screen = pygame.display.set_mode((screen_width, screen_height), screen_flags)
 sample_rate = 44100
 phase_accumulator = 0.0
 current_rpm = 0.0  
-POLONEZ_CARO = {
-    "idle": 36.0,        
+POLONEZ = {
+    "idle": 30.0,        
     "range": 125.0,      
     "base_vol": 0.0007,    
     "grit_vol": 0.0004,    
     "harmonic": 2.0      
 }
 
-current_profile = POLONEZ_CARO
+current_profile = POLONEZ
 def engine_audio_callback(outdata, frames, time, status):
     global phase_accumulator
     
@@ -48,7 +48,7 @@ audio_stream.start()
 
 near_road_width = 410
 number_of_road_segments = 18
-horizon_y = int(screen_height * 0.38)
+horizon_y = int(screen_height * 0.46)
 road_height = screen_height - horizon_y
 x_center = screen_width / 2
 
@@ -91,14 +91,17 @@ def create_map(map_list):
         map_list=map_list+ road_lenght * [turn_sharpnes]
     return map_list
 
-map_lsit=create_map(map_lsit)
-
-scenery_map = {}
+map_lsit = create_map(map_lsit)
+scenery_map = {} 
 for i in range(len(map_lsit)):
     if random.random() < 0.8:  
         side = random.choice([-1, 1])
         distance = random.randint(300, 2000)
         scenery_map[i] = {"type": random.choice(["tree", "stone", "bush"]),"offset": side * distance}
+
+for i in range(len(map_lsit)):
+        if i%300==0:
+            scenery_map[i] = {"type": "time_sign","offset": 400}   
 
 car_x = x_center - 30
 car_y = screen_height - 45-30
@@ -110,12 +113,14 @@ rolling_friction = 0.0001
 braking_force = 0.0025
 current_braking = 0.0
 rpm_percent = 0
+
 car_image = pygame.image.load("car_front.png").convert_alpha()
 tree_image = pygame.image.load("tree.png").convert_alpha()
 bush_image = pygame.image.load("bush.png").convert_alpha()
 stone_image = pygame.image.load("stone.png").convert_alpha()
 background_image = pygame.image.load("background.png").convert_alpha()
 overlay_image = pygame.image.load("overlay.png").convert_alpha()
+time_image = pygame.image.load("time_sign.png").convert_alpha()
 
 background_w=background_image.get_width()
 background_image_scaled=pygame.transform.scale(background_image, (background_w, horizon_y))
@@ -164,6 +169,18 @@ def width_calc(i, offset, curve_type, current_x_center):
     p_4 = (int(right_top_x), int(y_top))
 
     return p_1, p_2, p_3, p_4
+def border_draw(p_1,p_2,p_3, p_4,i):
+    
+    color = (255,0,0)
+    if i%2==0: color = (255,255,255)
+
+    p_t1=((p_1[0]-int((p_2[0] - p_1[0])*0.2)),p_3[1])
+    p_t2=((p_2[0]+int((p_2[0] - p_1[0])*0.2)),p_3[1])
+    pos1=p_1,p_3,p_t1
+    pos2=p_2,p_4,p_t2
+    pygame.draw.polygon(screen, color, pos1)
+    pygame.draw.polygon(screen, color, pos2)
+
 
 def rpm_calc(gear,speed):
     if  gear==1:
@@ -183,7 +200,7 @@ def rpm_calc(gear,speed):
         if rpm_percent>100: rpm_percent=100
         return rpm_percent
     elif  gear==5:
-        rpm_percent=speed/ 0.18 * 100
+        rpm_percent=speed/ 0.2 * 100
         if rpm_percent>100: rpm_percent=100
         return rpm_percent
 
@@ -231,9 +248,11 @@ def draw_road(turn):
         color = color_1 if map_index % 4 == 0 else color_2
 
         p_1, p_2, p_3, p_4 = width_calc(i, offset, curve_type, final_center)
+        
         pos = (p_1, p_2, p_4, p_3)
         pygame.draw.polygon(screen, color, pos)
-        actual_index = map_index % len(map_lsit)    
+        border_draw(p_1, p_2, p_3, p_4,map_index)
+        actual_index = map_index % len(map_lsit)       
         if actual_index in scenery_map:
             object=scenery_map[actual_index]
             if object["type"]=="tree":
@@ -248,7 +267,10 @@ def draw_road(turn):
                 sprite_img=stone_image
                 base_w=109
                 base_h=38
-            
+            elif object["type"]=="time_sign":
+                sprite_img=time_image
+                base_w=100
+                base_h=200
             scaled_base_w = int(base_w * scale)
             scaled_base_h = int(base_h * scale)
             if scaled_base_h>0 and scaled_base_w>0:
@@ -271,13 +293,13 @@ while running:
         turn -= current_tile_curve * 0.08
         
         if speed < 0.04 and gear==1:
-            engine_force = 0.0006 
+            engine_force = 0.00055 
         elif speed < 0.08 and gear==2:
-            engine_force = 0.0007 
+            engine_force = 0.0005 
         elif speed < 0.11 and gear==3:
-            engine_force = 0.0006 
+            engine_force = 0.00045
         elif speed < 0.14 and gear==4:
-                engine_force = 0.0005  
+                engine_force = 0.0004  
         elif speed < 0.18 and gear==5:
                 engine_force = 0.0004     
     else:
