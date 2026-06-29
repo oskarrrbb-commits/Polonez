@@ -4,11 +4,13 @@ import random
 import numpy as np
 import sounddevice as sd
 pygame.init()
+pygame.mixer.init()
 
 screen_width = 320
 screen_height = 240
 screen_flags = pygame.SCALED | pygame.FULLSCREEN
 
+pygame.mixer.music.load("assets/intro/intro.mp3")
 clock = pygame.time.Clock()
 
 screen = pygame.display.set_mode((screen_width, screen_height), screen_flags)
@@ -18,8 +20,8 @@ current_rpm = 0.0
 POLONEZ = {
     "idle": 30.0,        
     "range": 125.0,      
-    "base_vol": 0.0007,    
-    "grit_vol": 0.0004,    
+    "base_vol": 0.007,    
+    "grit_vol": 0.004,    
     "harmonic": 2.0      
 }
 
@@ -62,6 +64,8 @@ time_left = 60.0
 checkpoint_distance = 300
 next_checkpoint = checkpoint_distance
 game_over = False
+skip_intro = False
+skip_menu = False
 
 def time_to_go(clock,distance_traveled,game_over,time_left,next_checkpoint):
     dt = clock.get_time() / 1000.0  
@@ -114,7 +118,9 @@ braking_force = 0.0025
 current_braking = 0.0
 rpm_percent = 0
 
-car_image = pygame.image.load("car_front.png").convert_alpha()
+car_front_image = pygame.image.load("car_front.png").convert_alpha()
+car_left_image = pygame.image.load("car_left.png").convert_alpha()
+car_right_image = pygame.image.load("car_right.png").convert_alpha()
 tree_image = pygame.image.load("tree.png").convert_alpha()
 bush_image = pygame.image.load("bush.png").convert_alpha()
 stone_image = pygame.image.load("stone.png").convert_alpha()
@@ -280,9 +286,155 @@ def draw_road(turn):
                 screen.blit(scaled_base, (base_x, base_y))
 
         
+def fade_in(screen, image, clock, speeedof, base_image=None):
+    for alpha in range(0, 256, abs(speeedof)):
+        if skip_intro:
+            return
+        if base_image:
+            screen.blit(base_image, (0, 0))
+        image.set_alpha(alpha)
+        screen.blit(image, (0, 0))
+        pygame.display.flip()
+        process_intro_events()
+        if skip_intro:
+            return
+        clock.tick(60)
 
-        
+def fade_out(screen, image, clock, speeedof, base_image=None):
+    if skip_intro:
+        return
+    for alpha in range(255, -1, -abs(speeedof)):
+        if skip_intro:
+            return
+        if base_image:
+            screen.blit(base_image, (0, 0))
+        else:
+            screen.fill((0, 0, 0))
+        image.set_alpha(alpha)
+        screen.blit(image, (0, 0))
+        pygame.display.flip()
+        process_intro_events()
+        if skip_intro:
+            return
+        clock.tick(60)
 
+
+def process_intro_events():
+    global skip_intro
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                skip_intro = True
+            elif event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                sys.exit()
+
+
+def show_menu():
+    menu_running = True
+    while menu_running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    menu_running = False
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+        screen.blit(img7, (0, 0))
+        pygame.display.flip()
+        clock.tick(60)
+
+
+def wait_with_skip(milliseconds):
+    start = pygame.time.get_ticks()
+    while not skip_intro and pygame.time.get_ticks() - start < milliseconds:
+        process_intro_events()
+        clock.tick(60)
+
+img1 = pygame.image.load("assets/intro/polonez_logo.png")
+img2 = pygame.image.load("assets/intro/polonez_1.png")
+img3 = pygame.image.load("assets/intro/polonez_2.png")
+img4 = pygame.image.load("assets/intro/polonez_3.png")
+img5 = pygame.image.load("assets/intro/sunrise.png")
+img6 = pygame.image.load("assets/intro/car_front.png")
+img7 = pygame.image.load("assets/intro/menu.png")
+
+black_img = pygame.Surface(screen.get_size())
+black_img.fill((0, 0, 0))
+
+pygame.mixer.music.set_volume(0.5)
+pygame.mixer.music.play(0)
+
+screen.blit(black_img, (0, 0))
+pygame.display.flip()
+wait_with_skip(4000)
+fade_in(screen, img1, clock, 8)
+wait_with_skip(6500)
+fade_out(screen, img1, clock, 8)
+screen.blit(black_img, (0, 0))
+pygame.display.flip()
+wait_with_skip(3500)
+
+screen.blit(black_img, (0, 0))
+pygame.display.flip()
+fade_in(screen, img2, clock, 8)
+wait_with_skip(7000)
+
+fade_in(screen, img3, clock, 20, base_image=img2)
+fade_out(screen, img3, clock, 20, base_image=img2)
+wait_with_skip(400)
+fade_in(screen, img3, clock, 20, base_image=img2)
+fade_out(screen, img3, clock, 20, base_image=img2)
+wait_with_skip(2640)
+
+fade_out(screen, img2, clock, 8)
+screen.blit(black_img, (0, 0))
+pygame.display.flip()
+wait_with_skip(4000)
+fade_in(screen, img4, clock, 8)
+wait_with_skip(7000)
+fade_out(screen, img4, clock, 8)
+
+screen.blit(black_img, (0, 0))
+pygame.display.flip()
+wait_with_skip(8200)
+
+fade_in(screen, img6, clock, 8)
+wait_with_skip(6500)
+fade_out(screen, img6, clock, 8)
+screen.blit(black_img, (0, 0))
+pygame.display.flip()
+wait_with_skip(6500)
+
+fade_in(screen, img5, clock, 8)
+wait_with_skip(10200)
+fade_out(screen, img5, clock, 8)
+
+fade_in(screen, img6, clock, 8)
+wait_with_skip(10200)
+fade_in(screen, img7, clock, 8)
+
+menu_running = True
+while menu_running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                menu_running = False
+            elif event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                sys.exit()
+    screen.blit(img7, (0, 0))
+    pygame.display.flip()
+    clock.tick(60)
 
 running = True
 while running:
@@ -394,10 +546,41 @@ while running:
     screen.blit(speed_surface, (17, 180))
     screen.blit(gear_surface, (278, 220))
     screen.blit(time_surface, (270, 183))
-
+    if real_turn == 0:
+         car_image = car_front_image
+    elif real_turn > 0:
+         car_image = car_right_image
+    elif real_turn < 0:
+         car_image = car_left_image
     screen.blit(car_image, (car_x, car_y))
     rpm_draw(rpm_percent)
     time_left,game_over,next_checkpoint=time_to_go(clock,distance_traveled,game_over,time_left,next_checkpoint)
+    if game_over:
+        over_start = pygame.time.get_ticks()
+        score_font = pygame.font.Font(None, 28)
+        while pygame.time.get_ticks() - over_start < 2000:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            screen.fill((0, 0, 0))
+            score_surface = score_font.render(f"Score: {distance_traveled}", True, (255, 255, 255))
+            label_surface = score_font.render("Returning to menu...", True, (255, 255, 255))
+            screen.blit(score_surface, (80, 100))
+            screen.blit(label_surface, (40, 130))
+            pygame.display.flip()
+            clock.tick(400)
+        show_menu()
+        distance_traveled = 0
+        offset = 0
+        speed = 0
+        gear = 1
+        current_braking = 0.0
+        rpm_percent = 0
+        time_left = 60.0
+        next_checkpoint = checkpoint_distance
+        game_over = False
+        continue
     
     pygame.display.flip()
     clock.tick(60)
