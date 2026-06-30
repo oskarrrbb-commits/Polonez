@@ -474,11 +474,11 @@ while running:
         current_braking = 0.0
 
     real_turn = 0
-    if keys[pygame.K_a]:
+    if keys[pygame.K_d]:
         if speed>0:
             real_turn = -1
             turn -= 0.1  
-    if keys[pygame.K_d]:
+    if keys[pygame.K_a]:
         if speed>0:
             real_turn = 1
             turn += 0.1 
@@ -580,7 +580,7 @@ while running:
         time_left = 60.0
         next_checkpoint = checkpoint_distance
         game_over = False
-        continue
+        
     
     pygame.display.flip()
     clock.tick(60)
